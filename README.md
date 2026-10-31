@@ -1,197 +1,247 @@
-# Unio
+# UNIO
 
-Unio is a subscription-management application with separate React frontend and
-Express backend projects.
+**UNIO** is one unified platform that runs the full life of a subscription business: products and plans, quotations, subscriptions, automatic recurring invoices, taxes, discounts, payments, and finance reporting. Built for a 6-hour hackathon.
 
-```text
+The scenario is Brightloop Software, a company that sells business software on subscription (monthly or yearly), with add-ons and product variants. Before UNIO, subscriptions lived in a spreadsheet, renewals were remembered by whoever noticed first, invoices were typed by hand, payments were matched by scrolling bank statements, and nobody could say how much recurring revenue the company had. UNIO replaces all of that.
+
+---
+
+## Users and roles
+
+| Role | What they can do |
+|---|---|
+| **Admin** | Controls the whole system. Creates products, variants, plans, quotation templates, taxes and discount rules. The only role that can add staff. Can also use every staff screen. |
+| **Staff** | Day-to-day work with limited access: customers, subscriptions, invoices, payments, overdue list, reports. No access to products, plans, taxes, discounts or staff management. |
+| **Customer** | Self-service portal. Sees only their own subscriptions and invoices. Can pause, renew or close a subscription (only if the plan allows it), switch add-ons, download invoices and pay online. |
+
+Security is enforced in the API on every route. Hiding menu items in the UI is only a convenience.
+
+---
+
+## Features
+
+**Accounts and access**
+- Sign up with email and password. One account per email.
+- Password rule: more than 8 characters (at least 9), with an uppercase letter, a lowercase letter and a special character.
+- Forgot password: a one-time reset link is emailed to the registered address.
+- Role-based access for Admin, Staff and Customer.
+
+**Catalogue**
+- Products with name, type, sales price, cost price and notes.
+- Variants, for example Brand = Odoo adds 560 to the price.
+- Plans with price, billing period (daily, weekly, monthly, yearly), minimum quantity and availability dates.
+- Per-plan rules chosen by the admin: close automatically at end, allow early close, allow pause, allow renew.
+- Quotation templates (plan + product lines + validity in days).
+
+**Subscriptions**
+- Unique number (SUB-0001), customer, plan, start date, expiry date, payment terms.
+- Lines with product, quantity, unit price, taxes and amount.
+- Status flow: **Draft, Quotation, Confirmed, Active, Closed**, visible to the whole team.
+
+**Billing**
+- Invoices are generated from subscriptions automatically, with customer, lines, taxes and totals filled in.
+- Taxes are calculated from the admin's tax rules.
+- Invoice status flow: **Draft, Confirmed, Paid** (plus Cancelled). Team can confirm, cancel, send and print.
+- Nothing is billed twice and nothing is skipped.
+
+**Discounts**
+- Admin-only rules: fixed amount or percentage, minimum purchase or quantity, start and end dates, usage limit.
+- Apply to specific products or whole subscriptions.
+- Applied to the next invoice automatically and stop when expired or used up.
+
+**Payments**
+- Record method, amount, date and note against the right invoice (partial payments supported).
+- Customers can pay online through a gateway in test mode.
+- Paid vs outstanding is visible at all times, with an overdue list and reminder emails.
+
+**Reporting**
+- One finance view: active subscriptions, revenue collected, amount still owed, overdue invoices, with filters and a summary.
+- Every page is designed to respond in under 2 seconds with thousands of subscriptions.
+
+---
+
+## How the whole workflow runs
+
+A billing month, step by step.
+
+1. **A customer signs up.** A Customer account is created and the customer lands in the portal. Login redirects by role: Admin to the admin dashboard, Staff to the staff dashboard, Customer to the portal. Forgotten passwords are handled by an emailed reset link.
+2. **Admin sets up the catalogue.** Products with variants, plans with their rules, taxes, discount rules and quotation templates. Admin also adds staff members.
+3. **Staff prepares an offer.** A sales rep starts a new subscription from a quotation template. Plan and product lines fill in and the quotation expiry is set to today plus the template's validity days. The subscription is saved as **Draft**.
+4. **The subscription moves through its life:** Draft, then **Send quotation** (Quotation), then **Confirm** (Confirmed), then **Activate** (Active), then **Close** (Closed). Pause, Resume and Renew appear only when the plan allows them.
+5. **Billing day.** The billing engine runs daily at 00:30, or staff press **Run billing now**. For every Active, unpaused subscription whose next billing date has arrived it:
+   - creates an invoice with the customer, lines, taxes and totals filled in,
+   - applies any valid discounts and counts their usage,
+   - moves the next billing date forward by one billing period,
+   - closes the subscription if its plan has ended and auto-close is on.
+
+   A database unique key on (subscription, period start) means the same period can never be invoiced twice. A failure on one subscription never stops the others and is retried on the next run.
+6. **Staff handles invoices:** Confirm, Cancel, Send (emails a PDF) and Print.
+7. **Money comes in.** Staff record a payment with method, amount, date and note, or the customer pays online. When the balance reaches zero the invoice becomes **Paid** automatically.
+8. **Chasing late payers.** The overdue list shows Confirmed invoices past their due date. Staff can send reminders or record a payment from there.
+9. **Finance review.** The reports screen shows active subscriptions, revenue, outstanding balance and overdue invoices, with filters and CSV export.
+10. **Customers self-serve.** The portal lets customers view subscriptions, pause, renew or close them if the plan allows, switch add-ons, view and pay invoices, and update their profile.
+
+---
+
+## Tech stack
+
+| Layer | Technology |
+|---|---|
+| Language | TypeScript (frontend and backend) |
+| Backend | Node.js + Express |
+| ORM and migrations | Prisma |
+| Database | **PostgreSQL hosted on Supabase** |
+| Validation | Zod |
+| Authentication | bcrypt password hashing, JWT in an httpOnly cookie |
+| Scheduler | node-cron, plus a protected HTTP trigger |
+| Email | Nodemailer (Mailtrap sandbox or Gmail SMTP) |
+| PDF | pdfkit |
+| Payment gateway | Razorpay in test mode (alongside manual payment recording) |
+| Frontend | React 18 + Vite + TypeScript |
+| UI | Tailwind CSS + shadcn/ui |
+| Data fetching | TanStack Query + axios |
+| Forms | react-hook-form + zod |
+| Routing | React Router |
+| Hosting | Frontend: Vercel or Netlify. Backend: Render or Railway. Database: Supabase |
+
+### How Supabase is used
+
+Supabase is used **only as the hosted PostgreSQL database**. Authentication, roles and business logic are handled by UNIO's own Express API, not by Supabase Auth. Prisma connects to Supabase with a connection string.
+
+Copy the connection strings from the Supabase dashboard (Connect button on your project) and put them in `.env`:
+
+- `DATABASE_URL`: the pooled connection string, used by the running API.
+- `DIRECT_URL`: the direct connection string, used by Prisma for migrations.
+
+Use the exact strings and any extra query parameters shown in the Supabase dashboard and the Prisma + Supabase documentation for your project.
+
+---
+
+## Architecture
+
+```
+React web app (Vercel/Netlify)
+        |  HTTPS, httpOnly cookie
+        v
+Express API (Render/Railway)
+   - auth + role guard on every route
+   - modules: auth, users, customers, products, plans, templates,
+              taxes, discounts, subscriptions, invoices, payments,
+              reports, portal
+   - services: billing, pricing (tax + discount), mail, pdf, numbering
+   - cron: daily billing + overdue check
+        |  Prisma
+        v
+PostgreSQL on Supabase
+```
+
+### Project structure
+
+```
 unio/
-|-- backend-1/   Express, TypeScript, Prisma, and PostgreSQL/Supabase API
-|-- frontend/    React and Vite customer, staff, and administrator website
+  server/
+    prisma/schema.prisma
+    prisma/seed.ts
+    src/
+      app.ts
+      config/env.ts
+      middleware/ (auth.ts, error.ts)
+      modules/ (auth, users, customers, products, plans, templates,
+                taxes, discounts, subscriptions, invoices, payments,
+                reports, portal)
+      services/ (billing, pricing, mail, pdf, numbering)
+      jobs/cron.ts
+  web/
+    src/
+      api/  auth/  layouts/  components/
+      pages/ (admin, staff, portal)
 ```
 
-## Requirements
+---
 
-- Node.js 22.12 or newer
-- npm
-- A Supabase project with PostgreSQL
+## Key business rules
 
-## 1. Configure and run the backend
+- **Unique email** enforced by a database unique constraint (email stored lower-case).
+- **No double billing:** unique (subscriptionId, periodStart) on invoices, one transaction per invoice.
+- **Money** stored as `Decimal(12,2)`, never floats. Invoice lines are snapshots, so later price changes never alter old invoices.
+- **Tax** is calculated per line after discount, from the admin's active tax rules.
+- **Discounts** apply only between their start and end dates, while usage is below the limit, and when the minimum purchase or quantity is met.
+- **Overdue** means status Confirmed, balance above zero and due date in the past.
+- **Plan flags** (pause, renew, early close) decide which buttons appear and are also re-checked on the server.
+- **Customer data isolation:** the customer id always comes from the login token, never from the URL.
 
-Open PowerShell in the repository root and run:
+---
 
-```powershell
-cd backend-1
-npm ci
-Copy-Item .env.example .env
+## Getting started
+
+### 1. Prerequisites
+
+- Node.js (current LTS)
+- A Supabase project (the database)
+- A Mailtrap account or a Gmail app password (email)
+- Optional: Razorpay test keys (online payments)
+
+### 2. Environment variables
+
+Create `server/.env` (and keep a `server/.env.example` without secrets):
+
+```
+DATABASE_URL=
+DIRECT_URL=
+JWT_SECRET=
+CRON_KEY=
+FRONTEND_URL=http://localhost:5173
+SMTP_HOST=
+SMTP_PORT=
+SMTP_USER=
+SMTP_PASS=
+MAIL_FROM=
+RAZORPAY_KEY_ID=
+RAZORPAY_KEY_SECRET=
+RAZORPAY_WEBHOOK_SECRET=
+SEED_ADMIN_EMAIL=
+SEED_ADMIN_PASSWORD=
+PORT=4000
 ```
 
-Edit `backend-1\.env` and set:
+Generate `JWT_SECRET` and `CRON_KEY` with:
 
-- `SUPABASE_DATABASE_URL`: the Supabase **Session pooler** PostgreSQL URI
-- `SUPABASE_DIRECT_URL`: the Supabase **Direct connection** PostgreSQL URI
-- `JWT_SECRET`: a random secret with at least 32 characters
-- `CRON_KEY`: another random secret
-- `FRONTEND_URL`: `http://localhost:5173`
+```
+node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+```
 
-URL-encode any special characters in the database password. Do not use the
-Supabase project URL, anon key, or service-role key as a database URL.
+`SEED_ADMIN_PASSWORD` must follow the password rule (at least 9 characters, with an uppercase letter, a lowercase letter and a special character). Never commit `.env`.
 
-Initialize the database and start the API:
+### 3. Set up the database and run the API
 
-```powershell
-npm run db:generate
-npm run db:setup
+```
+cd server
+npm install
+npx prisma migrate dev
+npx prisma db seed
 npm run dev
 ```
 
-Keep this terminal running. The backend normally starts at
-`http://localhost:4000`.
+### 4. Run the web app
 
-- API health check: <http://localhost:4000/health>
-- Database readiness check: <http://localhost:4000/ready>
-
-## 2. Configure and run the frontend
-
-Open a second PowerShell terminal in the repository root:
-
-```powershell
-cd frontend
-npm ci
-Copy-Item .env.example .env
+```
+cd web
+npm install
 npm run dev
 ```
 
-The local frontend uses Vite's `/api` proxy and does not need a value in
-`.env` for normal development. To use another backend, uncomment
-`VITE_API_URL` in `frontend\.env` and enter the public backend origin.
+Open the URL printed by Vite and log in with the seeded admin account.
 
-Open the URL printed by Vite, normally <http://localhost:5173>. Keep both
-frontend and backend terminals running while using the website.
+Adjust the script names above to match the `package.json` in your repository.
 
-## Create the first administrator
+---
 
-The database starts empty. On the website:
+## Demo flow
 
-1. Open <http://localhost:5173/signup>.
-2. Create an account with your name, email, and a password that meets the
-   displayed password rules.
-3. The account is created with the default customer role.
-
-Then, while the backend is running, promote that account from a third terminal:
-
-```powershell
-cd backend-1
-npm run users:promote-admin -- your-email@example.com
-```
-
-Sign out and sign in again. The same account should now open the administrator
-workspace.
-
-## Website walkthrough
-
-### Sign in and account recovery
-
-1. Open `/login` and sign in.
-2. The site sends a signed-in user to the dashboard matching their role.
-3. Use **Forgot password?** to request a password-reset email.
-4. Use the reset link delivered by email to choose a new password.
-5. New users can create a customer account at `/signup`.
-
-### Administrator workspace
-
-Sign in with an administrator account and open `/user/admin` to see the
-dashboard. Use the sidebar to walk through:
-
-- **Customers** - create and manage customer records.
-- **Subscriptions** - create subscriptions, open subscription details, and
-  review subscription status.
-- **Invoices** - review generated invoices and their payment state.
-- **Payments** - inspect payments or record a manual payment.
-- **Overdue** - review overdue invoices and subscription balances.
-- **Products**, **Plans**, **Quotation Templates**, **Discounts**, and
-  **Taxes** - configure the items and pricing rules used by subscriptions.
-- **Staff** - manage staff accounts.
-- **Reports** - review billing and revenue reports.
-
-A typical administrator flow is:
-
-1. Create products and plans.
-2. Configure taxes and discounts if needed.
-3. Add or review a customer.
-4. Create a new subscription.
-5. Open the subscription to confirm its plan, dates, charges, and status.
-6. Review generated invoices, record or verify payments, and check overdue items.
-
-### Staff workspace
-
-A staff account can access `/user/staff`. Staff may work with:
-
-- Customers
-- Subscriptions
-- Invoices
-- Payments
-- Overdue accounts
-- Reports
-
-Staff do not have access to administrator catalog, tax, discount, quotation
-template, or staff-management screens.
-
-### Customer portal
-
-A customer account opens `/user/portal`. The customer can:
-
-- Review the portal home page and account information.
-- Browse **Products**.
-- View **My Subscriptions** and open subscription details.
-- View **My Invoices** and open invoice details.
-- Continue to the payment page for available online payment options.
-- Update information in **Profile**.
-
-Sign out from the sidebar when the walkthrough is complete.
-
-## Optional services
-
-Email and Razorpay settings are optional for starting the application. Add
-them to `backend-1\.env` only when the related feature is required:
-
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, and `MAIL_FROM` enable
-  reset emails and invoice delivery.
-- Razorpay test credentials enable online payments. A public HTTPS webhook for
-  Razorpay should target `/api/payments/webhook`.
-- Set `CRON_ENABLED=true` only when the backend's scheduled billing worker
-  should run automatically.
-
-## Production build
-
-```powershell
-cd backend-1
-npm ci
-npm run db:generate
-npm run db:setup
-npm run build
-npm start
-```
-
-In a separate terminal:
-
-```powershell
-cd frontend
-npm ci
-npm run build
-npm run preview
-```
-
-For deployment, build the frontend and serve `frontend\dist` through the
-frontend hosting platform. Set `frontend\.env`'s `VITE_API_URL` to the public
-backend origin, update `FRONTEND_URL` in the backend environment, and ensure
-the frontend and API are allowed to share credentials through CORS.
-
-## Common checks
-
-- Verify the API at <http://localhost:4000/health>.
-- Verify PostgreSQL at <http://localhost:4000/ready>.
-- Confirm the backend terminal has no database connection errors.
-- Confirm `FRONTEND_URL=http://localhost:5173` in the backend environment.
-- If Vite cannot reach the API, restart the frontend after changing
-  `VITE_API_URL` and make sure the backend is still running.
-
+1. Sign up a customer, showing the password rule and duplicate-email errors.
+2. As admin: create a product with an Odoo variant, a monthly plan, a tax, a discount rule, a quotation template and a staff member.
+3. As staff: create a subscription from the template, send the quotation, confirm and activate.
+4. Press **Run billing now**: invoices appear with taxes and discounts filled in. Press it again and nothing is duplicated.
+5. Record a payment and show the invoice become Paid. Show the overdue list and send a reminder.
+6. As customer: see only your own data, pause a subscription, pay an invoice in gateway test mode.
+7. Open the finance dashboard and show active subscriptions, revenue, outstanding and overdue with filters, and the measured page timings on seeded data.
