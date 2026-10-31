@@ -1,0 +1,235 @@
+{
+  "measuredAt": "2026-10-31T07:17:55.475Z",
+  "environment": "Local Windows, embedded PostgreSQL; HTTP via supertest, no hosted network or cold start included",
+  "counts": {
+    "customers": 200,
+    "subscriptions": 5000,
+    "invoices": 15000,
+    "payments": 10000
+  },
+  "summary": {
+    "activeSubscriptions": 5000,
+    "revenue": "1000000.00",
+    "outstanding": "500000.00",
+    "overdueCount": 2500
+  },
+  "results": [
+    {
+      "path": "/api/customers",
+      "firstMs": 113.81,
+      "maxMs": 113.81,
+      "meanMs": 32.09
+    },
+    {
+      "path": "/api/subscriptions",
+      "firstMs": 65.68,
+      "maxMs": 65.68,
+      "meanMs": 25.89
+    },
+    {
+      "path": "/api/invoices",
+      "firstMs": 31.03,
+      "maxMs": 31.03,
+      "meanMs": 22.34
+    },
+    {
+      "path": "/api/invoices/overdue",
+      "firstMs": 23.36,
+      "maxMs": 23.36,
+      "meanMs": 15.65
+    },
+    {
+      "path": "/api/payments",
+      "firstMs": 17.52,
+      "maxMs": 17.52,
+      "meanMs": 11.15
+    },
+    {
+      "path": "/api/reports/summary",
+      "firstMs": 54.77,
+      "maxMs": 54.77,
+      "meanMs": 20.89
+    },
+    {
+      "path": "/api/reports/subscriptions",
+      "firstMs": 9.21,
+      "maxMs": 9.26,
+      "meanMs": 8.6
+    },
+    {
+      "path": "/api/reports/invoices",
+      "firstMs": 9.63,
+      "maxMs": 10.57,
+      "meanMs": 10
+    },
+    {
+      "path": "/api/reports/payments",
+      "firstMs": 12.73,
+      "maxMs": 12.73,
+      "meanMs": 9.49
+    }
+  ],
+  "overduePlan": [
+    {
+      "QUERY PLAN": [
+        {
+          "Plan": {
+            "Node Type": "Limit",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 0.29,
+            "Total Cost": 42.97,
+            "Plan Rows": 25,
+            "Plan Width": 20,
+            "Actual Startup Time": 0.01,
+            "Actual Total Time": 0.023,
+            "Actual Rows": 25,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Shared Hit Blocks": 4,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Index Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Scan Direction": "Forward",
+                "Index Name": "Invoice_status_dueDate_idx",
+                "Relation Name": "Invoice",
+                "Alias": "Invoice",
+                "Startup Cost": 0.29,
+                "Total Cost": 1422.54,
+                "Plan Rows": 833,
+                "Plan Width": 20,
+                "Actual Startup Time": 0.009,
+                "Actual Total Time": 0.021,
+                "Actual Rows": 25,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Index Cond": "((status = 'CONFIRMED'::\"InvStatus\") AND (\"dueDate\" < CURRENT_DATE))",
+                "Rows Removed by Index Recheck": 0,
+                "Filter": "(\"amountPaid\" < total)",
+                "Rows Removed by Filter": 0,
+                "Index Searches": 1,
+                "Shared Hit Blocks": 4,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 3,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.125,
+          "Triggers": [],
+          "Execution Time": 0.036
+        }
+      ]
+    }
+  ],
+  "activePlan": [
+    {
+      "QUERY PLAN": [
+        {
+          "Plan": {
+            "Node Type": "Aggregate",
+            "Strategy": "Plain",
+            "Partial Mode": "Simple",
+            "Parallel Aware": false,
+            "Async Capable": false,
+            "Startup Cost": 165,
+            "Total Cost": 165.01,
+            "Plan Rows": 1,
+            "Plan Width": 8,
+            "Actual Startup Time": 0.894,
+            "Actual Total Time": 0.894,
+            "Actual Rows": 1,
+            "Actual Loops": 1,
+            "Disabled": false,
+            "Shared Hit Blocks": 90,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0,
+            "Plans": [
+              {
+                "Node Type": "Seq Scan",
+                "Parent Relationship": "Outer",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Relation Name": "Subscription",
+                "Alias": "Subscription",
+                "Startup Cost": 0,
+                "Total Cost": 152.5,
+                "Plan Rows": 5000,
+                "Plan Width": 0,
+                "Actual Startup Time": 0.01,
+                "Actual Total Time": 0.692,
+                "Actual Rows": 5000,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Filter": "(status = 'ACTIVE'::\"SubStatus\")",
+                "Rows Removed by Filter": 0,
+                "Shared Hit Blocks": 90,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              }
+            ]
+          },
+          "Planning": {
+            "Shared Hit Blocks": 0,
+            "Shared Read Blocks": 0,
+            "Shared Dirtied Blocks": 0,
+            "Shared Written Blocks": 0,
+            "Local Hit Blocks": 0,
+            "Local Read Blocks": 0,
+            "Local Dirtied Blocks": 0,
+            "Local Written Blocks": 0,
+            "Temp Read Blocks": 0,
+            "Temp Written Blocks": 0
+          },
+          "Planning Time": 0.088,
+          "Triggers": [],
+          "Execution Time": 0.91
+        }
+      ]
+    }
+  ]
+}

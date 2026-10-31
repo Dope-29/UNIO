@@ -1,0 +1,7 @@
+node_modules
+dist
+.test-db
+.tmp
+.npm-cache
+package-lock.json
+docs/local-benchmark.json
