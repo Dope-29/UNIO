@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { TrendingUp } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { messageFrom } from '../../lib/api';
 
 function Logo() {
   return (
@@ -29,13 +29,12 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await login(email, password);
-      const lower = email.toLowerCase();
-      if (lower.includes('admin')) navigate('/user/admin');
-      else if (lower.includes('staff')) navigate('/user/staff');
+      const user = await login(email, password);
+      if (user.role === 'ADMIN') navigate('/user/admin');
+      else if (user.role === 'STAFF') navigate('/user/staff');
       else navigate('/user/portal');
-    } catch {
-      setError('Login failed. Please try again.');
+    } catch (err) {
+      setError(messageFrom(err));
     } finally {
       setLoading(false);
     }
@@ -54,15 +53,6 @@ export default function LoginPage() {
           <p className="auth-art-desc">
             Unify subscriptions, customers and revenue workflows in one calm, clear workspace.
           </p>
-          <div className="auth-art-stat">
-            <div className="auth-art-stat-icon">
-              <TrendingUp size={20} />
-            </div>
-            <div>
-              <div className="auth-art-stat-value">+28.4%</div>
-              <div className="auth-art-stat-label">revenue growth this month</div>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -109,13 +99,6 @@ export default function LoginPage() {
             <Link to="/signup">Create an account</Link>
           </div>
 
-          <div style={{ marginTop: 24, padding: '12px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Demo credentials:</p>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Admin: <strong>admin@unio.com</strong></p>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Staff: <strong>staff@unio.com</strong></p>
-            <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Customer: <strong>user@example.com</strong></p>
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Any password works</p>
-          </div>
         </div>
       </div>
     </div>

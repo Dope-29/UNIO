@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import PasswordRules, { validPassword } from '../../components/common/PasswordRules';
+import { messageFrom } from '../../lib/api';
 
 function Logo() {
   return (
@@ -12,7 +14,7 @@ function Logo() {
 }
 
 export default function SignupPage() {
-  const { login } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [loading, setLoading] = useState(false);
@@ -28,13 +30,14 @@ export default function SignupPage() {
       setError('Passwords do not match.');
       return;
     }
+    if (!validPassword(form.password)) { setError('Password constraints not matching. Please check the requirements below.'); return; }
     setLoading(true);
     setError('');
     try {
-      await login(form.email, form.password);
+      await signup(form.name, form.email, form.password);
       navigate('/user/portal');
-    } catch {
-      setError('Sign up failed. Please try again.');
+    } catch (err) {
+      setError(messageFrom(err));
     } finally {
       setLoading(false);
     }
@@ -94,6 +97,7 @@ export default function SignupPage() {
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
+              <PasswordRules password={form.password} />
             </div>
             <div className="form-group">
               <label className="form-label">Confirm password</label>

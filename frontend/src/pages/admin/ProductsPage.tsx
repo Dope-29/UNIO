@@ -6,9 +6,16 @@ import Badge from '../../components/common/Badge';
 import { mockProducts } from '../../data/mockData';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
+import { del, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function ProductsPage() {
   const navigate = useNavigate();
+  const { reload } = useLiveData();
+  const remove = async (id: string, name: string) => {
+    if (!window.confirm(`Deactivate product "${name}"?`)) return;
+    try { await del(`/products/${id}`); await reload(); } catch (error) { window.alert(messageFrom(error)); }
+  };
 
   const columns = [
     {
@@ -76,10 +83,7 @@ export default function ProductsPage() {
             style={{ color: 'var(--danger)' }}
             onClick={(e) => {
               e.stopPropagation();
-              if (window.confirm(`Delete product "${row.name}"?`)) {
-                // In a real app, dispatch delete action
-                alert('Delete action would fire here.');
-              }
+              void remove(String(row.id), String(row.name));
             }}
           >
             <Trash2 size={15} />

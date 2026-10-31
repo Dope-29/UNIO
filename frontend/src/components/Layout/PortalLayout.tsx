@@ -1,6 +1,6 @@
 import React, { useState, ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { WalletCards, Receipt, User, LogOut, Menu, X, Home } from 'lucide-react';
+import { WalletCards, Receipt, User, LogOut, Menu, X, Home, Package } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 function Logo() {
@@ -23,6 +23,7 @@ function SidebarContent({ onClose }: { onClose?: () => void }) {
 
   const navItems = [
     { path: '/user/portal', label: 'Home', icon: Home },
+    { path: '/user/portal/products', label: 'Products', icon: Package },
     { path: '/user/portal/subscriptions', label: 'My Subscriptions', icon: WalletCards },
     { path: '/user/portal/invoices', label: 'My Invoices', icon: Receipt },
     { path: '/user/portal/profile', label: 'Profile', icon: User },

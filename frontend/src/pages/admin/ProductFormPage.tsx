@@ -4,6 +4,8 @@ import AdminLayout from '../../components/Layout/AdminLayout';
 import { mockProducts } from '../../data/mockData';
 import { ProductVariant } from '../../types';
 import { Plus, Trash2, ArrowLeft, Check } from 'lucide-react';
+import { post, patch, del, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function ProductFormPage() {
   const navigate = useNavigate();
@@ -13,19 +15,19 @@ export default function ProductFormPage() {
 
   const [name, setName] = useState(existing?.name || '');
   const [type, setType] = useState(existing?.type || 'Digital service');
-  const [salesPrice, setSalesPrice] = useState(existing?.salesPrice || 199);
-  const [costPrice, setCostPrice] = useState(existing?.costPrice || 25);
+  const [salesPrice, setSalesPrice] = useState(existing?.salesPrice || 0);
+  const [costPrice, setCostPrice] = useState(existing?.costPrice || 0);
   const [notes, setNotes] = useState(existing?.notes || '');
   const [variants, setVariants] = useState<ProductVariant[]>(
-    existing?.variants || [
-      { id: 'v1', attribute: 'Tier', value: 'Pro', extraPrice: 50 },
-    ]
+    existing?.variants || []
   );
+  const [error, setError] = useState('');
+  const { reload } = useLiveData();
 
   const addVariantRow = () => {
     setVariants([
       ...variants,
-      { id: `v-${Date.now()}`, attribute: '', value: '', extraPrice: 0 },
+      { id: crypto.randomUUID(), attribute: '', value: '', extraPrice: 0 },
     ]);
   };
 
@@ -39,10 +41,19 @@ export default function ProductFormPage() {
     );
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate save
-    navigate('/user/admin/products');
+    try {
+      const payload = { name, type, salesPrice: Number(salesPrice), costPrice: Number(costPrice), notes: notes || undefined };
+      const saved = id ? await patch<{ data: { id: string } }>(`/products/${id}`, payload) : await post<{ data: { id: string } }>('/products', payload);
+      const productId = saved.data.id;
+      const originalIds = new Set((existing?.variants ?? []).map((v) => v.id));
+      await Promise.all((existing?.variants ?? []).filter((v) => !variants.some((now) => now.id === v.id)).map((v) => del(`/products/${productId}/variants/${v.id}`)));
+      await Promise.all(variants.filter((v) => v.attribute && v.value).map((v) => originalIds.has(v.id)
+        ? patch(`/products/${productId}/variants/${v.id}`, { attribute: v.attribute, value: v.value, extraPrice: Number(v.extraPrice) })
+        : post(`/products/${productId}/variants`, { attribute: v.attribute, value: v.value, extraPrice: Number(v.extraPrice) })));
+      await reload(); navigate('/user/admin/products');
+    } catch (err) { setError(messageFrom(err)); }
   };
 
   return (
@@ -66,6 +77,7 @@ export default function ProductFormPage() {
         </div>
 
         <form onSubmit={handleSave}>
+          {error && <p className="form-error">{error}</p>}
           <div className="card" style={{ marginBottom: 24, padding: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>General Details</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

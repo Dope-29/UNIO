@@ -1,21 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { AuthUser, UserRole } from '../types';
+import { get, post } from '../lib/api';
 
 interface AuthContextType {
   user: AuthUser | null;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<AuthUser>;
+  signup: (name: string, email: string, password: string) => Promise<AuthUser>;
+  logout: () => Promise<void>;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-
-function getRoleFromEmail(email: string): UserRole {
-  const lower = email.toLowerCase();
-  if (lower.includes('admin')) return 'ADMIN';
-  if (lower.includes('staff')) return 'STAFF';
-  return 'CUSTOMER';
-}
 
 function getInitials(name: string): string {
   return name
@@ -26,65 +22,44 @@ function getInitials(name: string): string {
     .toUpperCase();
 }
 
-const MOCK_USERS: Record<string, AuthUser> = {
-  admin: {
-    id: 'u1',
-    name: 'Alex Morgan',
-    email: 'admin@unio.com',
-    role: 'ADMIN',
-    avatarInitials: 'AM',
-  },
-  staff: {
-    id: 'u2',
-    name: 'Priya Shah',
-    email: 'staff@unio.com',
-    role: 'STAFF',
-    avatarInitials: 'PS',
-  },
-  customer: {
-    id: 'u3',
-    name: 'Acme Corp',
-    email: 'billing@acme.co',
-    role: 'CUSTOMER',
-    avatarInitials: 'AC',
-  },
-};
+type ServerUser = { id: string; name: string; email: string; role: UserRole };
+const toAuthUser = (user: ServerUser): AuthUser => ({ ...user, avatarInitials: getInitials(user.name) });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const stored = localStorage.getItem('unio_user');
-    if (stored) {
-      try {
-        setUser(JSON.parse(stored));
-      } catch {
-        localStorage.removeItem('unio_user');
-      }
-    }
+    void get<{ data: ServerUser }>('/auth/me')
+      .then(({ data }) => setUser(toAuthUser(data)))
+      .catch(() => setUser(null))
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const login = async (email: string, _password: string): Promise<void> => {
-    const role = getRoleFromEmail(email);
-    const mockKey = role === 'ADMIN' ? 'admin' : role === 'STAFF' ? 'staff' : 'customer';
-    const existingUser = MOCK_USERS[mockKey];
-    const loggedUser: AuthUser = {
-      ...existingUser,
-      email,
-      name: existingUser.name,
-      avatarInitials: getInitials(existingUser.name),
-    };
-    localStorage.setItem('unio_user', JSON.stringify(loggedUser));
-    setUser(loggedUser);
+  const login = async (email: string, password: string): Promise<AuthUser> => {
+    const { data } = await post<{ data: ServerUser }>('/auth/login', { email, password });
+    const loggedIn = toAuthUser(data);
+    setUser(loggedIn);
+    return loggedIn;
   };
 
-  const logout = () => {
-    localStorage.removeItem('unio_user');
-    setUser(null);
+  const signup = async (name: string, email: string, password: string): Promise<AuthUser> => {
+    const { data } = await post<{ data: ServerUser }>('/auth/signup', { name, email, password });
+    const signedUp = toAuthUser(data);
+    setUser(signedUp);
+    return signedUp;
+  };
+
+  const logout = async () => {
+    try {
+      await post('/auth/logout');
+    } finally {
+      setUser(null);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, isAuthenticated: !!user, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

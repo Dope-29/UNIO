@@ -1,6 +1,11 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LiveDataProvider, useLiveData } from './context/LiveDataContext';
+import LiveInvoice from './pages/shared/LiveInvoice';
+import LiveSubscription from './pages/shared/LiveSubscription';
+import CreateSubscription from './pages/shared/CreateSubscription';
+import LiveReports from './pages/shared/LiveReports';
 import { AdminGuard, StaffGuard, CustomerGuard } from './components/guards/RouteGuards';
 
 // Auth Pages
@@ -50,9 +55,11 @@ import MyInvoicesPage from './pages/portal/MyInvoicesPage';
 import CustomerInvoiceDetailPage from './pages/portal/InvoiceDetailPage';
 import OnlinePaymentPage from './pages/portal/OnlinePaymentPage';
 import ProfilePage from './pages/portal/ProfilePage';
+import PortalProductsPage from './pages/portal/ProductsPage';
 
 function RootRedirect() {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
+  if (isLoading) return null;
   if (!isAuthenticated || !user) {
     return <Navigate to="/login" replace />;
   }
@@ -61,10 +68,15 @@ function RootRedirect() {
   return <Navigate to="/user/portal" replace />;
 }
 
-export default function App() {
+function AppRoutes() {
+  // Re-mount route content after the first live API load so legacy screens
+  // read the fetched data instead of their initial empty compatibility arrays.
+  const { version, loading, error, reload } = useLiveData();
+  const { user, isLoading } = useAuth();
+  if (isLoading || (user && (loading || (version === 0 && !error)))) return <p>Loading…</p>;
+  if (user && error) return <div role="alert"><p>Unable to load application data: {error}</p><button onClick={() => void reload()}>Try again</button></div>;
   return (
-    <AuthProvider>
-      <Routes>
+      <Routes key={version}>
         {/* ── Root ────────────────────────────────────────── */}
         <Route path="/" element={<RootRedirect />} />
 
@@ -79,7 +91,7 @@ export default function App() {
           path="/user/admin"
           element={
             <AdminGuard>
-              <AdminDashboardPage />
+              <LiveReports role="admin" dashboard />
             </AdminGuard>
           }
         />
@@ -167,7 +179,7 @@ export default function App() {
           path="/user/admin/subscriptions/new"
           element={
             <AdminGuard>
-              <AdminNewSubscriptionPage />
+              <CreateSubscription role="admin" />
             </AdminGuard>
           }
         />
@@ -175,7 +187,7 @@ export default function App() {
           path="/user/admin/subscriptions/:id"
           element={
             <AdminGuard>
-              <AdminSubscriptionDetailPage />
+              <LiveSubscription role="admin" />
             </AdminGuard>
           }
         />
@@ -191,7 +203,7 @@ export default function App() {
           path="/user/admin/invoices/:id"
           element={
             <AdminGuard>
-              <AdminInvoiceDetailPage />
+              <LiveInvoice role="admin" />
             </AdminGuard>
           }
         />
@@ -223,7 +235,7 @@ export default function App() {
           path="/user/admin/reports"
           element={
             <AdminGuard>
-              <AdminReportsPage />
+              <LiveReports role="admin" />
             </AdminGuard>
           }
         />
@@ -233,7 +245,7 @@ export default function App() {
           path="/user/staff"
           element={
             <StaffGuard>
-              <StaffDashboardPage />
+              <LiveReports role="staff" dashboard />
             </StaffGuard>
           }
         />
@@ -257,7 +269,7 @@ export default function App() {
           path="/user/staff/subscriptions/new"
           element={
             <StaffGuard>
-              <StaffNewSubscriptionPage />
+              <CreateSubscription role="staff" />
             </StaffGuard>
           }
         />
@@ -265,7 +277,7 @@ export default function App() {
           path="/user/staff/subscriptions/:id"
           element={
             <StaffGuard>
-              <StaffSubscriptionDetailPage />
+              <LiveSubscription role="staff" />
             </StaffGuard>
           }
         />
@@ -281,7 +293,7 @@ export default function App() {
           path="/user/staff/invoices/:id"
           element={
             <StaffGuard>
-              <StaffInvoiceDetailPage />
+              <LiveInvoice role="staff" />
             </StaffGuard>
           }
         />
@@ -313,7 +325,7 @@ export default function App() {
           path="/user/staff/reports"
           element={
             <StaffGuard>
-              <StaffReportsPage />
+              <LiveReports role="staff" />
             </StaffGuard>
           }
         />
@@ -339,11 +351,12 @@ export default function App() {
             </CustomerGuard>
           }
         />
+        <Route path="/user/portal/products" element={<CustomerGuard><PortalProductsPage /></CustomerGuard>} />
         <Route
           path="/user/portal/subscriptions/:id"
           element={
             <CustomerGuard>
-              <CustomerSubscriptionDetailPage />
+              <LiveSubscription role="portal" />
             </CustomerGuard>
           }
         />
@@ -359,7 +372,7 @@ export default function App() {
           path="/user/portal/invoices/:id"
           element={
             <CustomerGuard>
-              <CustomerInvoiceDetailPage />
+              <LiveInvoice role="portal" />
             </CustomerGuard>
           }
         />
@@ -401,6 +414,9 @@ export default function App() {
         {/* ── Fallback ────────────────────────────────────── */}
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
-    </AuthProvider>
   );
+}
+
+export default function App() {
+  return <AuthProvider><LiveDataProvider><AppRoutes /></LiveDataProvider></AuthProvider>;
 }

@@ -7,6 +7,8 @@ import Modal from '../../components/common/Modal';
 import { mockCustomers } from '../../data/mockData';
 import { Customer } from '../../types';
 import { UserPlus, Mail, Phone, ArrowRight } from 'lucide-react';
+import { post, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function CustomersPage() {
   const navigate = useNavigate();
@@ -17,29 +19,17 @@ export default function CustomersPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [billingAddress, setBillingAddress] = useState('');
+  const [error, setError] = useState('');
+  const { reload } = useLiveData();
 
-  const handleCreateCustomer = (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
 
-    const newCust: Customer = {
-      id: `c-${Date.now()}`,
-      name,
-      email,
-      phone: phone || '+1 (555) 000-0000',
-      billingAddress: billingAddress || 'Corporate HQ',
-      activeSubscriptions: 0,
-      outstandingAmount: 0,
-      status: 'Active',
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-
-    setCustomers([newCust, ...customers]);
-    setName('');
-    setEmail('');
-    setPhone('');
-    setBillingAddress('');
-    setIsModalOpen(false);
+    try {
+      await post('/customers', { name, email, phone: phone || undefined, address: billingAddress || undefined });
+      await reload(); setName(''); setEmail(''); setPhone(''); setBillingAddress(''); setIsModalOpen(false);
+    } catch (err) { setError(messageFrom(err)); }
   };
 
   const columns = [
@@ -160,6 +150,7 @@ export default function CustomersPage() {
         maxWidth={500}
       >
         <form onSubmit={handleCreateCustomer}>
+          {error && <p className="form-error">{error}</p>}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="form-group">
               <label className="form-label">Full Name / Company Name</label>

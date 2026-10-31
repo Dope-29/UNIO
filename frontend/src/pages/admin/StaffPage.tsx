@@ -5,8 +5,11 @@ import DataTable from '../../components/common/DataTable';
 import Modal from '../../components/common/Modal';
 import { mockStaff } from '../../data/mockData';
 import { StaffMember } from '../../types';
+import PasswordRules, { validPassword } from '../../components/common/PasswordRules';
+import { post, patch, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
-const ROLES = ['Administrator', 'Billing Manager', 'Sales Staff', 'Support Staff'];
+const ROLES = ['Staff'];
 
 interface StaffForm {
   name: string;
@@ -19,7 +22,7 @@ const defaultForm: StaffForm = {
   name: '',
   email: '',
   tempPassword: '',
-  role: 'Sales Staff',
+  role: 'Staff',
 };
 
 export default function StaffPage() {
@@ -27,6 +30,7 @@ export default function StaffPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<StaffForm>(defaultForm);
   const [formError, setFormError] = useState('');
+  const { reload } = useLiveData();
 
   const openModal = () => {
     setForm(defaultForm);
@@ -45,29 +49,23 @@ export default function StaffPage() {
     setFormError('');
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!form.name.trim() || !form.email.trim() || !form.tempPassword.trim()) {
       setFormError('Name, email and temporary password are required.');
       return;
     }
-    const newMember: StaffMember = {
-      id: `st${Date.now()}`,
-      name: form.name.trim(),
-      email: form.email.trim(),
-      role: form.role,
-      status: 'Active',
-      lastActive: 'Never',
-    };
-    setStaff((prev) => [newMember, ...prev]);
-    closeModal();
+    if (!validPassword(form.tempPassword)) { setFormError('Password constraints not matching. Please check the requirements below.'); return; }
+    try {
+      await post('/users/staff', { name: form.name.trim(), email: form.email.trim(), password: form.tempPassword });
+      await reload(); closeModal();
+    } catch (error) { setFormError(messageFrom(error)); }
   };
 
-  const handleDeactivate = (memberId: string) => {
-    setStaff((prev) =>
-      prev.map((m) =>
-        m.id === memberId ? { ...m, status: m.status === 'Active' ? 'Inactive' : 'Active' } : m
-      )
-    );
+  const handleDeactivate = async (memberId: string) => {
+    const member = staff.find((m) => m.id === memberId);
+    if (!member) return;
+    try { await patch(`/users/staff/${memberId}`, { isActive: member.status !== 'Active' }); await reload(); }
+    catch (error) { window.alert(messageFrom(error)); }
   };
 
   const columns = [
@@ -185,6 +183,7 @@ export default function StaffPage() {
               value={form.tempPassword}
               onChange={(e) => handleChange('tempPassword', e.target.value)}
             />
+            <PasswordRules password={form.tempPassword} />
           </div>
 
           <div className="form-group">

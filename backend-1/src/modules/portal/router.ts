@@ -12,8 +12,21 @@ import { invoicePdf } from '../../services/pdf.service.js';
 import { createOrder } from '../../services/gateway.service.js';
 import * as schema from './schema.js';
 import * as service from './service.js';
+import { pageArgs } from '../../shared/schema.js';
 export const portalRouter = Router();
 portalRouter.use(authenticate, requireRole('CUSTOMER'));
+portalRouter.get('/products', async (req, res) => {
+  const { skip, take, page } = pageArgs(req.query);
+  const where = { isActive: true };
+  const [data, total] = await Promise.all([
+    db.product.findMany({ where, skip, take, orderBy: { id: 'asc' }, select: {
+      id: true, name: true, type: true, salesPrice: true,
+      variants: { select: { id: true, attribute: true, value: true, extraPrice: true } },
+    } }),
+    db.product.count({ where }),
+  ]);
+  res.json({ data, total, page, take });
+});
 portalRouter.get('/subscriptions', async (req, res) =>
   res.json(await listSubscriptions(req.query, customerScope(req))),
 );

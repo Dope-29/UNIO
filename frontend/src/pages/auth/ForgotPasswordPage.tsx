@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
+import { post, messageFrom } from '../../lib/api';
 
 function Logo() {
   return (
@@ -14,10 +15,22 @@ function Logo() {
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email) setSubmitted(true);
+    if (!email) return;
+    setLoading(true);
+    setError('');
+    try {
+      await post('/auth/forgot', { email });
+      setSubmitted(true);
+    } catch (err) {
+      setError(messageFrom(err));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -63,8 +76,9 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary auth-submit-btn" type="submit">
-                Send reset link
+              {error && <p className="form-error">{error}</p>}
+              <button className="btn btn-primary auth-submit-btn" type="submit" disabled={loading}>
+                {loading ? 'Sending…' : 'Send reset link'}
               </button>
             </form>
           )}

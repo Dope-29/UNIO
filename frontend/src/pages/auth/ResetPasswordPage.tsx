@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
+import { post, messageFrom } from '../../lib/api';
+import PasswordRules, { validPassword } from '../../components/common/PasswordRules';
 
 function Logo() {
   return (
@@ -13,11 +15,12 @@ function Logo() {
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [form, setForm] = useState({ password: '', confirm: '' });
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.password) {
       setError('Please enter a new password.');
@@ -27,9 +30,20 @@ export default function ResetPasswordPage() {
       setError('Passwords do not match.');
       return;
     }
+    if (!validPassword(form.password)) { setError('Password constraints not matching. Please check the requirements below.'); return; }
+    const token = searchParams.get('token');
+    if (!token) {
+      setError('This reset link is invalid or incomplete.');
+      return;
+    }
     setError('');
-    setDone(true);
-    setTimeout(() => navigate('/login'), 2500);
+    try {
+      await post('/auth/reset', { token, password: form.password });
+      setDone(true);
+      setTimeout(() => navigate('/login'), 2500);
+    } catch (err) {
+      setError(messageFrom(err));
+    }
   };
 
   return (
@@ -71,6 +85,7 @@ export default function ResetPasswordPage() {
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                 />
+                <PasswordRules password={form.password} />
               </div>
               <div className="form-group">
                 <label className="form-label">Confirm password</label>

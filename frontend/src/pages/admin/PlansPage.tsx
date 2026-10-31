@@ -6,6 +6,8 @@ import Modal from '../../components/common/Modal';
 import { mockPlans } from '../../data/mockData';
 import { Plan, BillingPeriod } from '../../types';
 import { Plus, Check, X, ShieldAlert } from 'lucide-react';
+import { post, patch, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>(mockPlans);
@@ -23,6 +25,8 @@ export default function PlansPage() {
   const [allowEarlyClose, setAllowEarlyClose] = useState(true);
   const [allowPause, setAllowPause] = useState(true);
   const [allowRenew, setAllowRenew] = useState(true);
+  const [error, setError] = useState('');
+  const { reload } = useLiveData();
 
   const openCreateModal = () => {
     setEditingPlan(null);
@@ -54,56 +58,22 @@ export default function PlansPage() {
     setIsModalOpen(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    if (editingPlan) {
-      setPlans(
-        plans.map((p) =>
-          p.id === editingPlan.id
-            ? {
-                ...p,
-                name,
-                price: Number(price),
-                billingPeriod,
-                minQty: Number(minQty),
-                availableFrom,
-                availableUntil,
-                closeAuto,
-                allowEarlyClose,
-                allowPause,
-                allowRenew,
-              }
-            : p
-        )
-      );
-    } else {
-      const newPlan: Plan = {
-        id: `pl-${Date.now()}`,
-        name,
-        price: Number(price),
-        billingPeriod,
-        minQty: Number(minQty),
-        availableFrom,
-        availableUntil,
-        closeAuto,
-        allowEarlyClose,
-        allowPause,
-        allowRenew,
-        status: 'Active',
-      };
-      setPlans([newPlan, ...plans]);
-    }
-    setIsModalOpen(false);
+    const billingPeriodMap: Record<string, string> = { Daily: 'DAILY', Weekly: 'WEEKLY', Monthly: 'MONTHLY', Annual: 'YEARLY', Yearly: 'YEARLY' };
+    const data = { name, price: Number(price), billingPeriod: billingPeriodMap[billingPeriod] ?? billingPeriod, minQuantity: Number(minQty), availableFrom: new Date(availableFrom).toISOString(), availableTo: availableUntil ? new Date(availableUntil).toISOString() : undefined, autoCloseOnEnd: closeAuto, allowEarlyClose, allowPause, allowRenew, isActive: true };
+    try {
+      if (editingPlan) await patch(`/plans/${editingPlan.id}`, data); else await post('/plans', data);
+      await reload(); setIsModalOpen(false);
+    } catch (err) { setError(messageFrom(err)); }
   };
 
-  const handleToggleStatus = (id: string) => {
-    setPlans(
-      plans.map((p) =>
-        p.id === id ? { ...p, status: p.status === 'Active' ? 'Inactive' : 'Active' } : p
-      )
-    );
+  const handleToggleStatus = async (id: string) => {
+    const current = plans.find((p) => p.id === id);
+    if (!current) return;
+    try { await patch(`/plans/${id}`, { isActive: current.status !== 'Active' }); await reload(); } catch (err) { setError(messageFrom(err)); }
   };
 
   const columns = [
@@ -270,6 +240,7 @@ export default function PlansPage() {
         maxWidth={580}
       >
         <form onSubmit={handleSave}>
+          {error && <p className="form-error">{error}</p>}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
               <label className="form-label">Plan Name</label>
@@ -301,9 +272,10 @@ export default function PlansPage() {
                 value={billingPeriod}
                 onChange={(e) => setBillingPeriod(e.target.value as BillingPeriod)}
               >
+                <option value="Daily">Daily</option>
+                <option value="Weekly">Weekly</option>
                 <option value="Monthly">Monthly</option>
-                <option value="Quarterly">Quarterly</option>
-                <option value="Annual">Annual</option>
+                <option value="Yearly">Yearly</option>
               </select>
             </div>
 

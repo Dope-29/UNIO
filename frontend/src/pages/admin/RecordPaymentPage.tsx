@@ -4,22 +4,26 @@ import AdminLayout from '../../components/Layout/AdminLayout';
 import { mockInvoices } from '../../data/mockData';
 import { PaymentMethod } from '../../types';
 import { ArrowLeft, Check } from 'lucide-react';
+import { post, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function RecordPaymentPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const invoiceId = searchParams.get('invoice') || mockInvoices[1]?.id;
+  const invoiceId = searchParams.get('invoice');
 
-  const invoice = mockInvoices.find((i) => i.id === invoiceId) || mockInvoices[1];
+  const invoice = mockInvoices.find((i) => i.id === invoiceId);
 
   const [method, setMethod] = useState<PaymentMethod>('Bank Transfer');
-  const [amount, setAmount] = useState<number>(invoice?.balance || 5184);
+  const [amount, setAmount] = useState<number>(invoice?.balance || 0);
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [note, setNote] = useState('Payment settlement received via wire transfer');
+  const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const { reload } = useLiveData();
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!invoice) { setError('Select an invoice from the invoice list before recording a payment.'); return; }
     if (amount <= 0) {
       setError('Amount must be greater than zero.');
       return;
@@ -29,8 +33,14 @@ export default function RecordPaymentPage() {
       return;
     }
 
-    navigate(`/user/admin/invoices/${invoice.id}`);
+    try {
+      const methodMap: Record<string, string> = { 'Bank Transfer': 'BANK_TRANSFER', Card: 'CARD', UPI: 'UPI', Cheque: 'CHEQUE', Cash: 'CASH' };
+      await post(`/invoices/${invoice.id}/payments`, { method: methodMap[method], amount, paidAt: new Date(date).toISOString(), note: note || undefined });
+      await reload(); navigate(`/user/admin/invoices/${invoice.id}`);
+    } catch (err) { setError(messageFrom(err)); }
   };
+
+  if (!invoice) return <AdminLayout title="Record Payment"><p className="form-error">Choose an invoice from the invoice list to record a payment.</p></AdminLayout>;
 
   return (
     <AdminLayout title="Record Payment">

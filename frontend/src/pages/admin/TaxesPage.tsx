@@ -3,6 +3,8 @@ import AdminLayout from '../../components/Layout/AdminLayout';
 import DataTable from '../../components/common/DataTable';
 import { mockTaxes } from '../../data/mockData';
 import { Tax } from '../../types';
+import { post, messageFrom } from '../../lib/api';
+import { useLiveData } from '../../context/LiveDataContext';
 
 interface TaxForm {
   name: string;
@@ -22,25 +24,20 @@ export default function TaxesPage() {
   const [taxes, setTaxes] = useState<Tax[]>(mockTaxes);
   const [form, setForm] = useState<TaxForm>(defaultForm);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const { reload } = useLiveData();
 
   const handleChange = <K extends keyof TaxForm>(field: K, value: TaxForm[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim()) return;
-    const newTax: Tax = {
-      id: `t${Date.now()}`,
-      name: form.name.trim(),
-      rate: Number(form.rate),
-      appliesTo: form.appliesTo,
-      active: form.active,
-    };
-    setTaxes((prev) => [...prev, newTax]);
-    setForm(defaultForm);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
+    try {
+      await post('/taxes', { name: form.name.trim(), ratePercent: Number(form.rate), isActive: form.active });
+      await reload(); setForm(defaultForm); setSaved(true); setTimeout(() => setSaved(false), 2500);
+    } catch (err) { setError(messageFrom(err)); }
   };
 
   const columns = [
@@ -138,6 +135,7 @@ export default function TaxesPage() {
                 </span>
               )}
             </div>
+            {error && <p className="form-error">{error}</p>}
           </div>
         </div>
 

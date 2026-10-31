@@ -15,14 +15,14 @@ export default function PortalHomePage() {
   const navigate = useNavigate();
 
   // Filter only Acme Corporation (customer id c1) for logged in customer
-  const mySubscriptions = mockSubscriptions.filter((s) => s.customerId === 'c1');
+  const mySubscriptions = mockSubscriptions;
   const activeSubs = mySubscriptions.filter((s) => s.status === 'Active');
-  const myInvoices = mockInvoices.filter((i) => i.customerId === 'c1' && i.status !== 'Draft');
+  const myInvoices = mockInvoices.filter((i) => i.status !== 'Draft');
   const outstandingAmount = myInvoices
     .filter((i) => i.balance > 0)
     .reduce((sum, i) => sum + i.balance, 0);
 
-  const nextBilling = activeSubs[0]?.nextBillingDate || 'Mar 24, 2025';
+  const nextBilling = activeSubs.map((s) => s.nextBillingDate).filter(Boolean).sort()[0] || '—';
 
   return (
     <PortalLayout title="My Account Overview">
@@ -40,7 +40,7 @@ export default function PortalHomePage() {
         <KPICard
           label="Active Subscriptions"
           value={activeSubs.length.toString()}
-          trend="2 Plans"
+          trend=""
           trendUp={true}
           icon={WalletCards}
         />
@@ -54,7 +54,7 @@ export default function PortalHomePage() {
         <KPICard
           label="Next Scheduled Billing"
           value={nextBilling}
-          trend="Auto-charge"
+          trend=""
           trendUp={true}
           icon={Calendar}
         />

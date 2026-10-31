@@ -14,6 +14,10 @@ it('rejects unauthenticated access', async () => {
   expect(r.status).toBe(401);
   expect(r.body.error.code).toBe('UNAUTHENTICATED');
 });
+it('requires authentication for the customer product catalog', async () => {
+  const r = await request(app).get('/api/portal/products');
+  expect(r.status).toBe(401);
+});
 it('rejects malformed auth payload before touching database', async () => {
   const r = await request(app)
     .post('/api/auth/signup')

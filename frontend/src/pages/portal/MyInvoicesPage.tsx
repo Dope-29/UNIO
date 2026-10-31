@@ -11,14 +11,14 @@ export default function MyInvoicesPage() {
 
   // In customer portal, only Acme Corporation (c1) invoices, and 'Draft' is hidden!
   const myInvoices = mockInvoices.filter(
-    (i) => i.customerId === 'c1' && i.status !== 'Draft'
+    (i) => i.status !== 'Draft'
   );
 
   const [statusFilter, setStatusFilter] = useState('All');
 
   const filtered = myInvoices.filter((i) => {
     if (statusFilter === 'All') return true;
-    if (statusFilter === 'Unpaid') return i.balance > 0;
+    if (statusFilter === 'Unpaid') return i.status === 'Confirmed' && i.balance > 0;
     return i.status === statusFilter;
   });
 
@@ -87,7 +87,7 @@ export default function MyInvoicesPage() {
         const bal = Number(row.balance);
         return (
           <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-            {bal > 0 && (
+            {bal > 0 && row.status === 'Confirmed' && (
               <button
                 className="btn btn-primary btn-sm"
                 onClick={(e) => {
@@ -98,6 +98,7 @@ export default function MyInvoicesPage() {
                 Pay Now
               </button>
             )}
+            <a className="btn btn-secondary btn-sm" href={`${import.meta.env.VITE_API_URL ?? ''}/api/portal/invoices/${encodeURIComponent(String(row.id))}/pdf`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}><Download size={14} /> PDF</a>
             <button
               className="btn btn-secondary btn-sm"
               onClick={(e) => {

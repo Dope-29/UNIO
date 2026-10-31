@@ -2,17 +2,17 @@ import React, { useState } from 'react';
 import PortalLayout from '../../components/Layout/PortalLayout';
 import { useAuth } from '../../context/AuthContext';
 import { Check, CheckCircle2, Lock, User, Phone, MapPin } from 'lucide-react';
+import { useApiItem } from '../../hooks/useApi';
+import { patch, post, messageFrom } from '../../lib/api';
+import PasswordRules, { validPassword } from '../../components/common/PasswordRules';
 
 export default function ProfilePage() {
   const { user } = useAuth();
 
-  // Profile details state
-  const [name, setName] = useState(user?.name || 'Acme Corporation');
-  const [email] = useState(user?.email || 'finance@acme.co');
-  const [phone, setPhone] = useState('+1 (555) 100-2000');
-  const [billingAddress, setBillingAddress] = useState(
-    '123 Enterprise Park, Suite 400\nSan Francisco, CA 94105'
-  );
+  const { data: profile, reload } = useApiItem<{ name: string; email: string; phone?: string; address?: string }>('/portal/profile');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [billingAddress, setBillingAddress] = useState('');
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState('');
@@ -23,22 +23,25 @@ export default function ProfilePage() {
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  React.useEffect(() => {
+    if (!profile) return;
+    setName(profile.name); setPhone(profile.phone ?? ''); setBillingAddress(profile.address ?? '');
+  }, [profile]);
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
+    try {
+      await patch('/portal/profile', { name, phone: phone || undefined, address: billingAddress || undefined });
+      await reload(); setProfileSaved(true); setTimeout(() => setProfileSaved(false), 3000);
+    } catch (error) { setPasswordError(messageFrom(error)); }
   };
 
-  const handleUpdatePassword = (e: React.FormEvent) => {
+  const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordError(null);
 
-    if (newPassword.length < 8) {
-      setPasswordError('Password must contain at least 8 characters.');
-      return;
-    }
-    if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/[0-9!@#$%^&*]/.test(newPassword)) {
-      setPasswordError('Password must contain uppercase, lowercase and a number/special character.');
+    if (!validPassword(newPassword)) {
+      setPasswordError('Password constraints not matching. Please check the requirements below.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -46,11 +49,11 @@ export default function ProfilePage() {
       return;
     }
 
-    setPasswordSaved(true);
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setTimeout(() => setPasswordSaved(false), 3000);
+    try {
+      await post('/portal/change-password', { currentPassword, password: newPassword });
+      setPasswordSaved(true); setCurrentPassword(''); setNewPassword(''); setConfirmPassword('');
+      setTimeout(() => setPasswordSaved(false), 3000);
+    } catch (error) { setPasswordError(messageFrom(error)); }
   };
 
   return (
@@ -108,7 +111,7 @@ export default function ProfilePage() {
                 <input
                   className="input"
                   disabled
-                  value={email}
+                  value={profile?.email ?? user?.email ?? ''}
                   style={{ opacity: 0.7, cursor: 'not-allowed' }}
                 />
                 <span style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
@@ -148,7 +151,7 @@ export default function ProfilePage() {
         <div className="card" style={{ padding: 28 }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>Change Password</h3>
           <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 20 }}>
-            Ensure your account uses a secure passphrase with minimum 8 characters.
+            Choose a password that meets the requirements below.
           </p>
 
           {passwordSaved && (
@@ -210,6 +213,7 @@ export default function ProfilePage() {
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="••••••••••"
                 />
+                <PasswordRules password={newPassword} />
               </div>
 
               <div className="form-group">

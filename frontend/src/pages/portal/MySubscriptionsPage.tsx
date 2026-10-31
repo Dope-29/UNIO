@@ -10,7 +10,7 @@ export default function MySubscriptionsPage() {
   const navigate = useNavigate();
 
   // In customer portal, only Acme Corporation (id c1) subscriptions are returned
-  const mySubscriptions = mockSubscriptions.filter((s) => s.customerId === 'c1');
+  const mySubscriptions = mockSubscriptions;
 
   const columns = [
     {
